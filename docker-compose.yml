@@ -1,0 +1,61 @@
+version: "3.8"
+services:
+  app:
+    image: node:18-alpine
+    container_name: hello-line
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./api:/app
+    restart: always
+    working_dir: /app
+    command: [ "npm", "start" ]
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - LINE_CHANNEL_ID=${LINE_CHANNEL_ID}
+      - LINE_CHANNEL_SECRET=${LINE_CHANNEL_SECRET}
+      - LINE_CHANNEL_ACCESS_TOKEN=${LINE_CHANNEL_ACCESS_TOKEN}
+    networks:
+      - app-network
+
+  worker:
+    image: node:18-alpine
+    container_name: hello-line-worker
+    volumes:
+      - ./api:/app
+    working_dir: /app
+    command: [ "node", "worker/index.js" ]
+    environment:
+      - NODE_ENV=development
+      - REDIS_HOST=redis
+      - LINE_ACCESS_TOKEN=${LINE_ACCESS_TOKEN}
+    depends_on:
+      - redis
+    networks:
+      - app-network
+
+  redis:
+    image: redis:6-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - app-network
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: ngrok
+    ports:
+      - "4040:4040" # ngrok web UI
+    environment:
+      - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
+    depends_on:
+      - app
+    command: [ "http", "app:3000", "--log", "stdout" ]
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
